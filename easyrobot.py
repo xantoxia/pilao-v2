@@ -421,7 +421,6 @@ def fatigue_prediction(input_data):
     prediction = model.predict(input_data)
     return ["低疲劳状态", "中疲劳状态", "高疲劳状态"][prediction[0]]
 
-
 def call_ark_api(client, messages):
     try:
         ark_messages = [{"role": msg["role"], "content": msg["content"]} for msg in messages]
@@ -432,12 +431,17 @@ def call_ark_api(client, messages):
         )
         response = ""
         for chunk in completion:
-            delta_content = chunk.choices[0].delta.content if hasattr(chunk.choices[0].delta, "content") else ""
-            yield delta_content
+            # 关键修复：先判断 choices 列表是否为空，再访问索引 0
+            if chunk.choices and len(chunk.choices) > 0:
+                choice = chunk.choices[0]
+                if hasattr(choice, "delta") and hasattr(choice.delta, "content") and choice.delta.content is not None:
+                    yield choice.delta.content
+            else:
+                # 如果 chunk 没有 choices，跳过处理，不返回任何内容
+                continue
     except Exception as e:
-        st.error(f"调用 Ark API 时出错：{e}")
+        st.error(f"调用 Ark API 时出错：{str(e)}")
         yield f"Error: {e}"
-
 
 # 输入数据表格
 input_data = pd.DataFrame({
